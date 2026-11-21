@@ -67,6 +67,26 @@ a {color:var(--primary)}
   #ataa-harvest :is(form,#harvest-status),#ataa-harvest .harvest-actions,.locale-note {display:none}
   table tr,.card {break-inside:avoid}
 }
+
+@media(max-width:640px) {
+  main {min-width:0;padding:.85rem}
+  header {padding-block:.55rem 1rem}
+  h1 {font-size:1.75rem}
+  main>h2,#sales-register h2 {font-size:1.27rem;margin-block-start:1.4rem}
+  .table-responsive {max-width:100%;overscroll-behavior-inline:contain}
+  .table :is(th,td) {padding:.42rem .5rem}
+  #sales-register .table-responsive {overflow:visible}
+  #sales-register :is(table,tbody,tfoot) {display:block;width:100%}
+  #sales-register thead {position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+  #sales-register :is(tbody,tfoot) tr {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:start;gap:.15rem;border-block-end:1px solid var(--border);padding:.35rem 0}
+  #sales-register tbody td:first-child,#sales-register tfoot th:first-child,#sales-register tfoot [colspan] {grid-column:1/-1}
+  #sales-register tbody td:nth-child(4) {grid-column:1/-1}
+  #sales-register :is(th,td) {min-width:0;border-block-end:0}
+  #sales-register tbody td::before {content:attr(data-label);display:block;color:var(--muted-foreground);font-size:.8rem}
+  #sales-register input[data-field] {min-width:0;width:100%;min-height:44px}
+  #sales-register #sales-add-row {min-height:44px}
+  #sales-register tfoot td:empty {display:none}
+}
 </style>
 </head>
 <body>
@@ -160,6 +180,25 @@ a {color:var(--primary)}
 #ataa-harvest .harvest-track {background:var(--ataa-tint,var(--muted));height:.38em}
 #ataa-harvest .harvest-fill {height:100%;background:var(--ataa-green,var(--viz-series-1,var(--primary)))}
 #ataa-harvest .harvest-comparison td:nth-child(n+4) .harvest-fill {background:var(--ataa-chart-secondary,var(--viz-series-2,var(--primary)))}
+
+#ataa-harvest .harvest-mobile-label {display:none}
+@media(max-width:640px) {
+  #ataa-harvest .viz-grid {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.5rem}
+  #ataa-harvest .viz-stat {min-width:0;padding:.65rem}
+  #ataa-harvest .viz-stat-value {overflow-wrap:anywhere}
+  #ataa-harvest .harvest-fields {grid-template-columns:minmax(0,1fr)}
+  #ataa-harvest .harvest-comparison .table-responsive {overflow:visible}
+  #ataa-harvest .harvest-comparison table,#ataa-harvest .harvest-comparison tbody {display:block;min-width:0;width:100%}
+  #ataa-harvest .harvest-comparison thead {position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+  #ataa-harvest .harvest-comparison tbody {display:grid;gap:.7rem}
+  #ataa-harvest .harvest-comparison tr {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 .5rem;border-block-end:1px solid var(--ataa-line,var(--border));padding-block-end:.4rem}
+  #ataa-harvest .harvest-comparison th[scope="row"] {grid-column:1/-1;background:var(--ataa-tint,var(--muted));color:var(--ataa-ink,var(--primary));font-weight:700}
+  #ataa-harvest .harvest-comparison :is(th,td) {padding:.44rem .55rem;border-block-end:0}
+  #ataa-harvest .harvest-comparison .harvest-measure {width:auto;min-width:0;white-space:normal}
+  #ataa-harvest .harvest-mobile-label {display:block;color:var(--muted-foreground);font-size:.8rem;font-weight:500}
+  #ataa-harvest .harvest-comparison .harvest-actions {grid-column:1/-1;text-align:start}
+  #ataa-harvest .harvest-actions .btn,#ataa-harvest form .btn {min-height:44px}
+}
 </style>
 <script>
 (() => {
@@ -201,18 +240,18 @@ a {color:var(--primary)}
     '</div><div class="text-small">' + detail + '</div></div>';
   const comparisonDate = new Intl.DateTimeFormat('ar',{day:'numeric',month:'long',timeZone:'UTC'});
   const comparisonFields = [
-    {value:row => row.olive,display:fmt},
-    {value:row => row.oil,display:fmt},
-    {value:yieldPercent,display:pct},
-    {value:row => row.workers,display:fmt},
-    {value:labor,display:fmt}
+    {value:row => row.olive,display:fmt,label:'الزيتون المحصود (كغ)'},
+    {value:row => row.oil,display:fmt,label:'الزيت المستخلص (كغ)'},
+    {value:yieldPercent,display:pct,label:'الاستخلاص بالوزن'},
+    {value:row => row.workers,display:fmt,label:'عدد العمال'},
+    {value:labor,display:fmt,label:'إنتاجية العامل (كغ/عامل)'}
   ];
   function renderComparisons() {
     const highest = comparisonFields.map(({value}) => Math.max(0,...records.map(row => value(row) ?? 0)));
     find('comparison-rows').innerHTML = records.map(row => {
       const date = new Date(row.date);
       const day = Number.isNaN(date.getTime()) ? 'اليوم ' + fmt(row.day) : comparisonDate.format(date);
-      const cells = comparisonFields.map(({value,display},index) => {
+      const cells = comparisonFields.map(({value,display,label:metricLabel},index) => {
         const amount = value(row);
         const width = highest[index] && amount != null ? amount / highest[index] * 100 : 0;
         const bar = amount == null ? '' : '<div class="harvest-track" aria-hidden="true">' +
@@ -220,7 +259,8 @@ a {color:var(--primary)}
         const maximum = amount != null && amount === highest[index];
         const cell = maximum ? '<td class="harvest-measure harvest-maximum">' : '<td class="harvest-measure">';
         const label = maximum ? '<span class="harvest-maximum-label">الأعلى</span>' : '';
-        return cell + '<bdi>' + display(amount) + label + '</bdi>' + bar + '</td>';
+        return cell + '<span class="harvest-mobile-label" aria-hidden="true">' + metricLabel +
+          '</span><bdi>' + display(amount) + label + '</bdi>' + bar + '</td>';
       });
       const edit = '<td class="harvest-actions"><button type="button" class="btn btn-ghost" data-day="' + row.day +
         '" aria-label="تعديل سجل ' + day + '">تعديل</button></td>';
@@ -343,6 +383,7 @@ a {color:var(--primary)}
 </script>
 <h2>خريطة مراحل حصاد الزيتون</h2>
 <section id="ataa-map-sample" lang="ar" dir="rtl" aria-label="مراحل حصاد الزيتون">
+  <p class="farm-touch-instruction text-small">اضغط على تاريخ الحصاد أو على منطقة في الخريطة لعرض التفاصيل.</p>
   <figure class="farm-figure">
     <div class="farm-map">
       <svg viewBox="180 0 751 808" aria-hidden="true">
@@ -464,6 +505,17 @@ a {color:var(--primary)}
 #ataa-map-sample .farm-guide.is-hover {stroke:#73dd91;stroke-width:4}
 #ataa-map-sample .farm-guide.is-active {stroke:#c3efcd;stroke-width:4}
 #ataa-map-sample #farm-selected-detail {color:var(--muted-foreground);margin:.35rem 0 0}
+
+#ataa-map-sample .farm-touch-instruction {display:none}
+@media(max-width:640px) {
+  #ataa-map-sample {width:100%;min-width:0}
+  #ataa-map-sample .farm-label {width:30%;padding-inline:.3em;font-size:.75rem;min-height:24px}
+  #ataa-map-sample #farm-selected-detail {margin-block-start:.65rem;padding-block:.43rem;border-block-start:1px solid var(--border);font-size:.88rem}
+}
+@media(hover:none) and (pointer:coarse) {
+  #ataa-map-sample .farm-touch-instruction {display:block;margin:0 0 .4rem;color:var(--muted-foreground)}
+  #ataa-map-sample .farm-tooltip {display:none}
+}
 </style>
 <script>
 (() => {
@@ -677,10 +729,10 @@ a {color:var(--primary)}
   </div>
   <template id="sales-entry-template">
     <tr>
-      <td><input class="form-control" data-field="name" aria-label="الاسم" maxlength="120"></td>
-      <td><input class="form-control" data-field="quantity" aria-label="عدد التنكات" type="number" min="0" step="1" inputmode="numeric"></td>
-      <td><input class="form-control" data-field="price" aria-label="السعر الإفرادي بالليرة التركية" type="number" min="0" step="0.01" inputmode="decimal"></td>
-      <td><output data-total>—</output></td>
+      <td data-label="الاسم"><input class="form-control" data-field="name" aria-label="الاسم" maxlength="120"></td>
+      <td data-label="عدد التنكات"><input class="form-control" data-field="quantity" aria-label="عدد التنكات" type="number" min="0" step="1" inputmode="numeric"></td>
+      <td data-label="السعر الإفرادي"><input class="form-control" data-field="price" aria-label="السعر الإفرادي بالليرة التركية" type="number" min="0" step="0.01" inputmode="decimal"></td>
+      <td data-label="المجموع"><output data-total>—</output></td>
     </tr>
   </template>
 </section>
